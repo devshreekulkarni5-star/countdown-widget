@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notion Countdown Widget</title>
+
+  <style>
+    body{
+      margin:0;
+      font-family:Arial,sans-serif;
+      background:#F8EDED;
+      padding:20px;
+    }
+    .container{max-width:420px;margin:auto;}
+    h1{text-align:center;color:#D67A7A;}
+    .card{
+      background:white;
+      padding:15px;
+      margin:12px 0;
+      border-radius:16px;
+      box-shadow:0 4px 10px rgba(0,0,0,.08);
+    }
+    input{
+      width:100%;
+      padding:10px;
+      margin:6px 0;
+      border-radius:8px;
+      border:1px solid #ddd;
+      box-sizing:border-box;
+    }
+    button{
+      padding:10px;
+      margin-top:8px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+    }
+    .add{width:100%;background:#D67A7A;color:white;font-size:16px;}
+    .delete{background:#ff5f5f;color:white;}
+    .progress{
+      height:8px;background:#eee;border-radius:10px;overflow:hidden;margin-top:8px;
+    }
+    .bar{height:100%;width:0%;background:#55c878;}
+    .time{font-size:20px;font-weight:bold;margin-top:10px;}
+    .green{color:#55c878;}
+    .orange{color:#ff9800;}
+    .red{color:#ff5252;}
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>📅 My Countdowns</h1>
+
+    <input id="task" placeholder="Task Name" />
+    <input id="date" type="datetime-local" />
+
+    <button class="add" id="addBtn">➕ Add Countdown</button>
+    <div id="list"></div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "countdowns";
+    let items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+    function save(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+
+    function addCountdown(){
+      const task = document.getElementById("task").value.trim();
+      const date = document.getElementById("date").value;
+
+      if(!task || !date) return;
+
+      items.push({
+        task,
+        date,
+        created: Date.now()
+      });
+
+      save();
+      document.getElementById("task").value = "";
+      document.getElementById("date").value = "";
+      render();
+    }
+
+    function removeItem(index){
+      items.splice(index, 1);
+      save();
+      render();
+    }
+
+    function render(){
+      const list = document.getElementById("list");
+      list.innerHTML = "";
+
+      const now = Date.now();
+
+      items.forEach((item, index) => {
+        const end = new Date(item.date).getTime();
+        const total = end - item.created;
+        const left = end - now;
+
+        let text = "";
+        let cls = "green";
+
+        if(left <= 0){
+          text = "🎉 Completed";
+        } else {
+          const d = Math.floor(left / 86400000);
+          const h = Math.floor((left % 86400000) / 3600000);
+          const m = Math.floor((left % 3600000) / 60000);
+          const s = Math.floor((left % 60000) / 1000);
+          text = `${d}d ${h}h ${m}m ${s}s`;
+
+          if(d < 3) cls = "red";
+          else if(d < 7) cls = "orange";
+        }
+
+        let percent = 0;
+        if(total > 0) percent = 100 - (left / total * 100);
+        if(percent < 0) percent = 0;
+        if(percent > 100) percent = 100;
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <h3>${escapeHtml(item.task)}</h3>
+          <div class="time ${cls}">${text}</div>
+          <div class="progress"><div class="bar" style="width:${percent}%"></div></div>
+          <button class="delete">Delete</button>
+        `;
+
+        card.querySelector(".delete").addEventListener("click", () => removeItem(index));
+        list.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str){
+      return str.replace(/[&<>"']/g, (ch) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[ch]));
+    }
+
+    document.getElementById("addBtn").addEventListener("click", addCountdown);
+
+    render();
+    setInterval(render, 1000);
+  </script>
+</body>
+</html>
